@@ -4,7 +4,7 @@ import Button from "@mui/material/Button";
 
 export default function Home() {
   return (
-    <main style={{ padding: 40, display: "grid", gap: 16 }}>
+    <main style={{ padding: 400, display: "grid", gap: 16 }}>
       <Button variant="contained" color="primary">
         MUI Test Button
       </Button>
