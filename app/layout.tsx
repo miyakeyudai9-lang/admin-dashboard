@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+
+import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
+
 import { QueryProvider } from "./providers/query-provider";
 import { MuiThemeProvider } from "./providers/theme-provider";
 
@@ -21,8 +24,8 @@ export const metadata: Metadata = {
 
 const queryConfig = {
   queries: {
-    staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 10, // 10 minutes (formerly cacheTime)
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 10,
     retry: 2,
     refetchOnWindowFocus: true,
   },
@@ -33,18 +36,20 @@ const queryConfig = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <MuiThemeProvider>
-          <QueryProvider config={queryConfig}>{children}</QueryProvider>
-        </MuiThemeProvider>
+        <AppRouterCacheProvider>
+          <MuiThemeProvider>
+            <QueryProvider config={queryConfig}>{children}</QueryProvider>
+          </MuiThemeProvider>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
