@@ -1,12 +1,14 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ClientTable from "@/components/Client";
-import { staffData } from "@/components/Staff/staff.type";
+import Breadcrumb from "@/components/Breadcrumb";
+import { allClients, staffData, type Client } from "@/components/Staff/staff.type";
 import type { SidebarItem } from "@/components/Sidebar/sidebar.type";
+import { useAuthStore } from "@/store/auth-store";
 
 export default function ClientPage() {
   return (
@@ -18,11 +20,33 @@ export default function ClientPage() {
 
 function ClientPageContent() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const staffId = Number(searchParams.get("staffId") ?? 0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const user = useAuthStore((state) => state.user);
+  const isAdmin = user?.role === "admin";
 
-  const selectedStaff = staffData.find((staff) => staff.id === staffId) ?? null;
+  const currentStaff = useMemo(
+    () =>
+      staffData.find(
+        (staff) =>
+          staff.id === user?.id ||
+          staff.email === user?.email ||
+          staff.name === user?.name,
+      ) ?? null,
+    [user],
+  );
+
+  const [clients, setClients] = useState<Client[]>(() =>
+    allClients.map((client) => ({
+      ...client,
+      assignedStaffId: client.assignedStaffId ?? 1,
+    })),
+  );
+
+  const visibleClients = isAdmin
+    ? clients
+    : currentStaff
+      ? clients.filter((client) => client.assignedStaffId === currentStaff.id)
+      : [];
 
   const handleSidebarSelect = (item: SidebarItem) => {
     if (item === "Dashboard") {
@@ -30,42 +54,68 @@ function ClientPageContent() {
       return;
     }
 
-    router.push(`/client?staffId=${staffId || 1}`);
+    if (item === "Staff") {
+      router.push("/staff");
+      return;
+    }
+
+    router.push("/client");
   };
 
-  if (!selectedStaff) {
-    return (
-      <div className="flex min-h-screen bg-gray-100">
-        <Sidebar
-          selected="Staff"
-          onSelect={handleSidebarSelect}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((prev) => !prev)}
-        />
-
-        <main className="flex-1 p-8">
-          <Navbar />
-          <div className="bg-white rounded shadow p-6">
-            <h2 className="text-2xl font-bold">Client Details</h2>
-            <p className="mt-4 text-gray-600">No staff selected.</p>
-          </div>
-        </main>
-      </div>
+  const handleAssignClient = (clientId: number, staffId: number) => {
+    setClients((previous) =>
+      previous.map((client) =>
+        client.clientId === clientId
+          ? { ...client, assignedStaffId: staffId }
+          : client,
+      ),
     );
-  }
+  };
+
+  const handleAddClient = () => {
+    router.push("/client/clientDetailPage?mode=create");
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar
-        selected="Staff"
+        selected="Clients"
         onSelect={handleSidebarSelect}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}
       />
 
       <main className="flex-1 p-8">
-        <Navbar />
-        <ClientTable staffName={selectedStaff.name} clients={selectedStaff.clients} />
+        <Navbar title={isAdmin ? "Clients" : `${currentStaff?.name ?? "My"} Clients`} />
+
+        <div className="mb-6">
+          <Breadcrumb
+            items={[
+              { label: "Dashboard", href: "/admin/dashboard" },
+              { label: "Clients", href: "/client", current: true },
+            ]}
+          />
+        </div>
+
+        {isAdmin && (
+          <div className="mb-6 flex justify-end">
+            <button
+              type="button"
+              onClick={handleAddClient}
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <span aria-hidden="true">+</span>
+              Add Client
+            </button>
+          </div>
+        )}
+
+        <ClientTable
+          title={isAdmin ? "All Clients" : `${currentStaff?.name ?? "My"} Clients`}
+          clients={visibleClients}
+          canManageAssignments={isAdmin}
+          onAssignClient={handleAssignClient}
+        />
       </main>
     </div>
   );
