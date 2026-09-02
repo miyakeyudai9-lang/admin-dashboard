@@ -123,7 +123,7 @@ export const LoginComponent: FC = (): JSX.Element => {
                   fontFamily: "Noto Sans JP, sans-serif",
                 }}
               >
-                {loginError.message}
+                {loginError}
               </Box>
             )}
 

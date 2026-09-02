@@ -3,10 +3,11 @@ import { LoginPayload } from "./type";
 import { api } from "@/lib/axios";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+
 export const useLoginHook = () => {
   const router = useRouter();
-
   const setAuth = useAuthStore((state) => state.setAuth);
+
   const {
     mutate,
     mutateAsync,
@@ -28,25 +29,25 @@ export const useLoginHook = () => {
       }
 
       setAuth(data.user, data.access_token);
-
-      router.push("/admin/dashboard");
+      router.replace("/admin/dashboard");
     },
-
-    onError: () => {},
   });
+
+  const normalizedError =
+    error instanceof Error
+      ? error.message
+      : typeof error === "string"
+        ? error
+        : "Login failed. Please try again.";
 
   return {
     login: mutate,
     loginAsync: mutateAsync,
     data,
     loading: isPending,
-    error,
+    error: normalizedError,
     isError,
     isSuccess,
     reset,
   };
 };
-
-//  const user = useAuthStore(  // to use the user role
-//     (state) => state.user,
-//   );
