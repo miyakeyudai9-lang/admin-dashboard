@@ -1,5 +1,5 @@
 import React from "react";
-import DashboardComponentnent from "@/app/components/Dashboard";
+import DashboardComponentnent from "@/components/Dashboard";
 
 export default function AdminDashboard() {
   return (
