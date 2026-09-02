@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
 import Navbar from "@/components/Navbar";
@@ -14,6 +14,8 @@ import {
   visaStatusOptions,
   visaTypeOptions,
 } from "@/components/Staff/staff.type";
+import { api } from "@/lib/axios";
+import { useAuthStore } from "@/store/auth-store";
 
 type DetailField = {
   label: string;
@@ -32,8 +34,41 @@ function ClientDetailPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [staffs, setStaffs] = useState<Array<{ _id?: string; id: number; name: string }>>([]);
+  const [createForm, setCreateForm] = useState({
+    fullName: "",
+    phone: "",
+    visaType: "Student" as "Student" | "Working" | "Dependent",
+    coeStatus: "Not Applied" as "Not Applied" | "Applied" | "Processing" | "Received" | "Rejected",
+    clientStatus: "New" as "New" | "Document Collection" | "Processing" | "COE Applied" | "COE Received" | "Visa Applied" | "Visa Approved" | "Visa Rejected" | "Departed" | "Arrived in Japan",
+    assignedStaff: "",
+  });
+  const user = useAuthStore((state) => state.user);
+  const mode = searchParams.get("mode");
   const clientId = Number(searchParams.get("clientId") ?? 0);
   const result = findClientById(clientId);
+
+  useEffect(() => {
+    const loadStaffs = async () => {
+      try {
+        const response = await api.get("/staff");
+        const staffList = Array.isArray(response.data) ? response.data : [];
+        setStaffs(
+          staffList.map((staff: any) => ({
+            _id: staff._id,
+            id: Number(staff.staffId ?? 0),
+            name: staff.name,
+          })),
+        );
+      } catch (error) {
+        console.error("Failed to load staff data", error);
+      }
+    };
+
+    if (mode === "create") {
+      loadStaffs();
+    }
+  }, [mode]);
 
   const handleSidebarSelect = (item: SidebarItem) => {
     if (item === "Dashboard") {
@@ -41,8 +76,166 @@ function ClientDetailPageContent() {
       return;
     }
 
-    router.push("/staff");
+    if (item === "Staff") {
+      router.push("/staff");
+      return;
+    }
+
+    router.push("/client");
   };
+
+  const handleCreateClient = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!createForm.fullName || !createForm.phone) return;
+
+    try {
+      await api.post("/profiles", {
+        clientId: Date.now(),
+        fullName: createForm.fullName,
+        phone: createForm.phone,
+        visaType: createForm.visaType,
+        coeStatus: createForm.coeStatus,
+        clientStatus: createForm.clientStatus,
+        assignedStaff: createForm.assignedStaff || undefined,
+      });
+
+      router.push("/client");
+    } catch (error) {
+      console.error("Failed to create client", error);
+    }
+  };
+
+  if (mode === "create") {
+    if (user?.role !== "admin" && user?.role !== "superadmin") {
+      return (
+        <PageShell
+          title="Add Client"
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+          onSidebarSelect={handleSidebarSelect}
+        >
+          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+            <h3 className="text-xl font-semibold text-gray-900">Access denied</h3>
+            <p className="mt-2 text-sm text-gray-600">
+              Only admins can add clients.
+            </p>
+          </div>
+        </PageShell>
+      );
+    }
+
+    return (
+      <PageShell
+        title="Add Client"
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+        onSidebarSelect={handleSidebarSelect}
+      >
+        <Breadcrumb
+          items={[
+            { label: "Dashboard", href: "/admin/dashboard" },
+            { label: "Clients", href: "/client" },
+            { label: "Add Client", current: true },
+          ]}
+        />
+
+        <form onSubmit={handleCreateClient} className="mt-6 space-y-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-gray-500">Full Name</span>
+              <input
+                value={createForm.fullName}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, fullName: event.target.value }))}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-500"
+                required
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-gray-500">Phone</span>
+              <input
+                value={createForm.phone}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, phone: event.target.value }))}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-500"
+                required
+              />
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-gray-500">Visa Type</span>
+              <select
+                value={createForm.visaType}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, visaType: event.target.value as "Student" | "Working" | "Dependent" }))}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-500"
+              >
+                {visaTypeOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-gray-500">Assign To</span>
+              <select
+                value={createForm.assignedStaff}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, assignedStaff: event.target.value }))}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-500"
+              >
+                <option value="">Unassigned</option>
+                {staffs.map((staff) => (
+                  <option key={String(staff._id ?? staff.id)} value={String(staff._id ?? staff.id)}>
+                    {staff.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-gray-500">COE Status</span>
+              <select
+                value={createForm.coeStatus}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, coeStatus: event.target.value as "Not Applied" | "Applied" | "Processing" | "Received" | "Rejected" }))}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-500"
+              >
+                {coeStatusOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-gray-500">Client Status</span>
+              <select
+                value={createForm.clientStatus}
+                onChange={(event) => setCreateForm((prev) => ({ ...prev, clientStatus: event.target.value as "New" | "Document Collection" | "Processing" | "COE Applied" | "COE Received" | "Visa Applied" | "Visa Approved" | "Visa Rejected" | "Departed" | "Arrived in Japan" }))}
+                className="mt-1 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition-colors hover:border-gray-300 focus:border-blue-500"
+              >
+                {clientStatusOptions.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => router.push("/client")}
+              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700"
+            >
+              Save Client
+            </button>
+          </div>
+        </form>
+      </PageShell>
+    );
+  }
 
   if (!result) {
     return (
@@ -235,7 +428,7 @@ function PageShell({
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar
-        selected="Staff"
+        selected="Clients"
         onSelect={onSidebarSelect}
         collapsed={sidebarCollapsed}
         onToggle={onToggleSidebar}

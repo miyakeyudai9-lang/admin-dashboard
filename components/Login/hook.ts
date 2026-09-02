@@ -18,16 +18,24 @@ export const useLoginHook = () => {
     reset,
   } = useMutation({
     mutationFn: async (payload: LoginPayload) => {
-      const response = await api.post("/login", payload);
+      const response = await api.post("/superadmin/login", payload);
       return response.data;
     },
 
     onSuccess: (data) => {
-      if (data?.access_token) {
-        localStorage.setItem("access_token", data.access_token);
+      const token = data?.token ?? data?.access_token ?? null;
+      const user = {
+        id: 1,
+        name: "Super Admin",
+        email: "admin@example.com",
+        role: "admin" as const,
+      };
+
+      if (token) {
+        localStorage.setItem("access_token", token);
       }
 
-      setAuth(data.user, data.access_token);
+      setAuth(user, token ?? "");
 
       router.push("/admin/dashboard");
     },
