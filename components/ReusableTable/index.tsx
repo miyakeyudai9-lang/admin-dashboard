@@ -159,7 +159,7 @@ export default function ClientTable({
                   <td className="p-3">
                     {isStaffVariant ? (
                       <Link
-                        href={`/client/clientDetailPage?clientId=${client.clientId}`}
+                        href={`/client/edit?clientId=${client.clientId}`}
                         className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50"
                       >
                         Edit
