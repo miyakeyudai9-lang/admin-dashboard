@@ -21,7 +21,7 @@ export default function DashboardComponentnent() {
       />
 
       <main className="flex-1 p-8">
-        <Navbar />
+        <Navbar title={selectedView} />
 
         {selectedView === "Dashboard" ? (
           <>
