@@ -26,14 +26,6 @@ export const useLoginHook = () => {
 
     onSuccess: (data) => {
       const token = data?.token ?? data?.access_token ?? null;
-      const backendUser = data?.user ?? data?.admin ?? data?.profile ?? null;
-      const user = {
-        id: Number(backendUser?._id ?? backendUser?.id ?? 1),
-        name: backendUser?.name ?? backendUser?.fullName ?? "Super Admin",
-        email: backendUser?.email ?? "admin@example.com",
-        role: (backendUser?.role ?? data?.role ?? "superadmin") as UserRole,
-      };
-
       if (token) {
         localStorage.setItem("access_token", token);
       }
@@ -43,12 +35,13 @@ export const useLoginHook = () => {
     },
   });
 
-  const normalizedError =
-    error instanceof Error
+  const normalizedError = error
+    ? error instanceof Error
       ? error.message
       : typeof error === "string"
         ? error
-        : "Login failed. Please try again.";
+        : "Login failed. Please try again."
+    : null;
 
   return {
     login: mutate,
