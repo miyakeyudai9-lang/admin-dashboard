@@ -1,3 +1,3 @@
-export type SidebarItem = "Dashboard" | "Staff";
+export type SidebarItem = "Dashboard" | "Staff" | "Clients";
 
-export const sidebarItems: SidebarItem[] = ["Dashboard", "Staff"];
+export const sidebarItems: SidebarItem[] = ["Dashboard", "Staff", "Clients"];
