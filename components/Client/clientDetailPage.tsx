@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Breadcrumb from "@/components/Breadcrumb";
 import Navbar from "@/components/Navbar";
@@ -9,7 +9,6 @@ import type { SidebarItem } from "@/components/Sidebar/sidebar.type";
 import {
   clientStatusOptions,
   coeStatusOptions,
-  findClientById,
   genderOptions,
   visaStatusOptions,
   visaTypeOptions,
@@ -20,6 +19,103 @@ import { useAuthStore } from "@/store/auth-store";
 type DetailField = {
   label: string;
   value?: string | number;
+};
+
+type StaffApiResponse = {
+  _id?: string;
+  staffId?: number | string;
+  name: string;
+  email?: string;
+};
+
+type ClientApiResponse = {
+  _id?: string;
+  clientId?: number | string;
+  fullName?: string;
+  dateOfBirth?: string;
+  gender?: "Male" | "Female" | "Other";
+  phone?: string;
+  email?: string;
+  address?: string;
+  nationality?: string;
+  passportNumber?: string;
+  passportExpiryDate?: string;
+  visaType?: "Student" | "Working" | "Dependent";
+  statusOfResidence?: string;
+  lastQualification?: string;
+  japaneseLanguageLevel?: string;
+  schoolName?: string;
+  course?: string;
+  intake?: string;
+  jobCategory?: string;
+  jobTitle?: string;
+  companyName?: string;
+  workLocation?: string;
+  sponsorName?: string;
+  sponsorRelationship?: string;
+  sponsorStatusOfResidence?: string;
+  coeStatus?: "Not Applied" | "Applied" | "Processing" | "Received" | "Rejected";
+  visaStatus?: "Not Applied" | "Applied" | "Processing" | "Approved" | "Rejected";
+  clientStatus?:
+    | "New"
+    | "Document Collection"
+    | "Processing"
+    | "COE Applied"
+    | "COE Received"
+    | "Visa Applied"
+    | "Visa Approved"
+    | "Visa Rejected"
+    | "Departed"
+    | "Arrived in Japan";
+  assignedStaff?: StaffApiResponse | string | null;
+  remarks?: string;
+  clientImage?: string;
+  cv?: string;
+};
+
+type ClientDetailRecord = {
+  _id?: string;
+  clientId: number;
+  fullName: string;
+  phone: string;
+  visaType: "Student" | "Working" | "Dependent";
+  coeStatus: "Not Applied" | "Applied" | "Processing" | "Received" | "Rejected";
+  visaStatus: "Not Applied" | "Applied" | "Processing" | "Approved" | "Rejected";
+  clientStatus:
+    | "New"
+    | "Document Collection"
+    | "Processing"
+    | "COE Applied"
+    | "COE Received"
+    | "Visa Applied"
+    | "Visa Approved"
+    | "Visa Rejected"
+    | "Departed"
+    | "Arrived in Japan";
+  assignedStaff?: StaffApiResponse | string | null;
+  dateOfBirth?: string;
+  gender?: "Male" | "Female" | "Other";
+  email?: string;
+  address?: string;
+  nationality?: string;
+  passportNumber?: string;
+  passportExpiryDate?: string;
+  statusOfResidence?: string;
+  lastQualification?: string;
+  japaneseLanguageLevel?: string;
+  schoolName?: string;
+  course?: string;
+  intake?: string;
+  jobCategory?: string;
+  jobTitle?: string;
+  companyName?: string;
+  workLocation?: string;
+  sponsorName?: string;
+  sponsorRelationship?: string;
+  sponsorStatusOfResidence?: string;
+  remarks?: string;
+  clientImage?: string;
+  cv?: string;
 };
 
 export default function ClientDetailPage() {
@@ -35,6 +131,8 @@ function ClientDetailPageContent() {
   const searchParams = useSearchParams();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [staffs, setStaffs] = useState<Array<{ _id?: string; id: number; name: string }>>([]);
+  const [client, setClient] = useState<ClientDetailRecord | null>(null);
+  const [loadingClient, setLoadingClient] = useState(true);
   const [createForm, setCreateForm] = useState({
     fullName: "",
     phone: "",
@@ -46,29 +144,64 @@ function ClientDetailPageContent() {
   const user = useAuthStore((state) => state.user);
   const mode = searchParams.get("mode");
   const clientId = Number(searchParams.get("clientId") ?? 0);
-  const result = findClientById(clientId);
 
   useEffect(() => {
-    const loadStaffs = async () => {
+    const loadPageData = async () => {
       try {
-        const response = await api.get("/staff");
-        const staffList = Array.isArray(response.data) ? response.data : [];
-        setStaffs(
-          staffList.map((staff: any) => ({
+        setLoadingClient(mode !== "create");
+
+        const staffResponse = await api.get("/staff");
+        const staffList = Array.isArray(staffResponse.data) ? staffResponse.data : [];
+        const mappedStaffs = staffList.map((staff: StaffApiResponse) => ({
             _id: staff._id,
             id: Number(staff.staffId ?? 0),
             name: staff.name,
-          })),
+          }));
+
+        setStaffs(mappedStaffs);
+
+        if (mode === "create") {
+          setClient(null);
+          return;
+        }
+
+        const clientResponse = await api.get("/clients");
+        const rawClients = Array.isArray(clientResponse.data?.data)
+          ? clientResponse.data.data
+          : Array.isArray(clientResponse.data)
+            ? clientResponse.data
+            : [];
+        const matchedClient = rawClients.find(
+          (item: ClientApiResponse) => Number(item.clientId ?? 0) === clientId,
         );
+
+        setClient(matchedClient ? mapClientDetail(matchedClient) : null);
       } catch (error) {
-        console.error("Failed to load staff data", error);
+        console.error("Failed to load client detail data", error);
+        setClient(null);
+        setStaffs([]);
+      } finally {
+        setLoadingClient(false);
       }
     };
 
-    if (mode === "create") {
-      loadStaffs();
+    loadPageData();
+  }, [clientId, mode]);
+
+  const assignedStaff = useMemo(() => {
+    if (!client?.assignedStaff) {
+      return null;
     }
-  }, [mode]);
+
+    if (typeof client.assignedStaff === "object") {
+      return client.assignedStaff;
+    }
+
+    return (
+      staffs.find((staff) => String(staff._id) === String(client.assignedStaff)) ??
+      null
+    );
+  }, [client, staffs]);
 
   const handleSidebarSelect = (item: SidebarItem) => {
     if (item === "Dashboard") {
@@ -89,7 +222,7 @@ function ClientDetailPageContent() {
     if (!createForm.fullName || !createForm.phone) return;
 
     try {
-      await api.post("/profiles", {
+      await api.post("/clients", {
         clientId: Date.now(),
         fullName: createForm.fullName,
         phone: createForm.phone,
@@ -237,7 +370,22 @@ function ClientDetailPageContent() {
     );
   }
 
-  if (!result) {
+  if (loadingClient) {
+    return (
+      <PageShell
+        title="Client Details"
+        sidebarCollapsed={sidebarCollapsed}
+        onToggleSidebar={() => setSidebarCollapsed((prev) => !prev)}
+        onSidebarSelect={handleSidebarSelect}
+      >
+        <div className="rounded-xl border border-gray-200 bg-white p-6 text-gray-600 shadow-sm">
+          Loading client details...
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!client) {
     return (
       <PageShell
         title="Client Details"
@@ -248,7 +396,7 @@ function ClientDetailPageContent() {
         <Breadcrumb
           items={[
             { label: "Dashboard", href: "/admin/dashboard" },
-            { label: "Staff", href: "/staff" },
+            { label: "Clients", href: "/client" },
             { label: "Client not found", current: true },
           ]}
         />
@@ -263,8 +411,6 @@ function ClientDetailPageContent() {
     );
   }
 
-  const { client, staff } = result;
-
   return (
     <PageShell
       title={client.fullName}
@@ -275,8 +421,15 @@ function ClientDetailPageContent() {
       <Breadcrumb
         items={[
           { label: "Dashboard", href: "/admin/dashboard" },
-          { label: "Staff", href: "/staff" },
-          { label: staff.name, href: `/client?staffId=${staff.id}` },
+          { label: "Clients", href: "/client" },
+          ...(assignedStaff?._id
+            ? [
+                {
+                  label: assignedStaff.name,
+                  href: `/staff/${assignedStaff._id}/clients`,
+                },
+              ]
+            : []),
           { label: client.fullName, current: true },
         ]}
       />
@@ -292,7 +445,7 @@ function ClientDetailPageContent() {
                 {client.fullName}
               </h3>
               <p className="mt-1 text-sm text-gray-600">
-                Assigned to {staff.name}
+                Assigned to {assignedStaff?.name ?? "Unassigned"}
               </p>
             </div>
 
@@ -497,6 +650,43 @@ function DetailSelect<T extends string>({
       </select>
     </label>
   );
+}
+
+function mapClientDetail(client: ClientApiResponse): ClientDetailRecord {
+  return {
+    _id: client._id,
+    clientId: Number(client.clientId ?? 0),
+    fullName: client.fullName ?? "Unknown Client",
+    dateOfBirth: client.dateOfBirth,
+    gender: client.gender,
+    phone: client.phone ?? "N/A",
+    email: client.email,
+    address: client.address,
+    nationality: client.nationality ?? "Nepali",
+    passportNumber: client.passportNumber,
+    passportExpiryDate: client.passportExpiryDate,
+    visaType: client.visaType ?? "Student",
+    statusOfResidence: client.statusOfResidence,
+    lastQualification: client.lastQualification,
+    japaneseLanguageLevel: client.japaneseLanguageLevel,
+    schoolName: client.schoolName,
+    course: client.course,
+    intake: client.intake,
+    jobCategory: client.jobCategory,
+    jobTitle: client.jobTitle,
+    companyName: client.companyName,
+    workLocation: client.workLocation,
+    sponsorName: client.sponsorName,
+    sponsorRelationship: client.sponsorRelationship,
+    sponsorStatusOfResidence: client.sponsorStatusOfResidence,
+    coeStatus: client.coeStatus ?? "Not Applied",
+    visaStatus: client.visaStatus ?? "Not Applied",
+    clientStatus: client.clientStatus ?? "New",
+    assignedStaff: client.assignedStaff ?? null,
+    remarks: client.remarks,
+    clientImage: client.clientImage,
+    cv: client.cv,
+  };
 }
 
 function formatDate(value?: string) {

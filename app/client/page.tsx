@@ -4,16 +4,15 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
-import ClientTable from "@/components/Client";
+import ReusableTable from "@/components/ReusableTable";
 import Breadcrumb from "@/components/Breadcrumb";
 import type { SidebarItem } from "@/components/Sidebar/sidebar.type";
-import { useAuthStore } from "@/store/auth-store";
 import { api } from "@/lib/axios";
 
 type StaffRecord = {
   _id?: string;
-  id?: number;
-  staffId?: number;
+  id?: number | string;
+  staffId?: number | string;
   name: string;
   email?: string;
   phone?: string;
@@ -25,9 +24,34 @@ type ClientRecord = {
   clientId: number;
   fullName: string;
   phone?: string;
+  visaType?: string;
+  coeStatus?: string;
+  visaStatus?: string;
+  clientStatus?: string;
   assignedStaff?: StaffRecord | string | null;
   assignedStaffId?: number | string | null;
   assignedStaffName?: string;
+};
+
+type StaffApiResponse = {
+  _id?: string;
+  staffId?: number | string;
+  name: string;
+  email?: string;
+  phone?: string;
+  location?: string;
+};
+
+type ClientApiResponse = {
+  _id?: string;
+  clientId?: number | string;
+  fullName?: string;
+  phone?: string;
+  visaType?: string;
+  coeStatus?: string;
+  visaStatus?: string;
+  clientStatus?: string;
+  assignedStaff?: StaffApiResponse | string | null;
 };
 
 export default function ClientPage() {
@@ -44,25 +68,27 @@ function ClientPageContent() {
   const [staffs, setStaffs] = useState<StaffRecord[]>([]);
   const [clients, setClients] = useState<ClientRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const user = useAuthStore((state) => state.user);
-  const isAdmin = user?.role === "admin" || user?.role === "superadmin";
 
   useEffect(() => {
     const loadData = async () => {
       try {
         const [staffResponse, clientResponse] = await Promise.all([
           api.get("/staff"),
-          api.get("/profiles"),
+          api.get("/clients"),
         ]);
 
         const staffList = Array.isArray(staffResponse.data) ? staffResponse.data : [];
-        const profileList = Array.isArray(clientResponse.data) ? clientResponse.data : [];
+        const rawClients = Array.isArray(clientResponse.data?.data)
+          ? clientResponse.data.data
+          : Array.isArray(clientResponse.data)
+            ? clientResponse.data
+            : [];
 
         setStaffs(
-          staffList.map((staff: any) => ({
+          staffList.map((staff: StaffApiResponse) => ({
             _id: staff._id,
-            id: Number(staff.staffId ?? staff._id ?? 0),
-            staffId: Number(staff.staffId ?? 0),
+            id: staff.staffId ?? staff._id ?? 0,
+            staffId: staff.staffId,
             name: staff.name,
             email: staff.email,
             phone: staff.phone,
@@ -71,19 +97,23 @@ function ClientPageContent() {
         );
 
         setClients(
-          profileList.map((profile: any) => ({
-            _id: profile._id,
-            clientId: Number(profile.clientId ?? 0),
-            fullName: profile.fullName ?? "Unknown Client",
-            phone: profile.phone,
-            assignedStaff: profile.assignedStaff,
+          rawClients.map((client: ClientApiResponse) => ({
+            _id: client._id,
+            clientId: Number(client.clientId ?? 0),
+            fullName: client.fullName ?? "Unknown Client",
+            phone: client.phone,
+            visaType: client.visaType,
+            coeStatus: client.coeStatus,
+            visaStatus: client.visaStatus,
+            clientStatus: client.clientStatus,
+            assignedStaff: client.assignedStaff,
             assignedStaffId:
-              typeof profile.assignedStaff === "object"
-                ? profile.assignedStaff?._id ?? null
-                : profile.assignedStaff ?? null,
+              typeof client.assignedStaff === "object" && client.assignedStaff
+                ? client.assignedStaff._id ?? null
+                : client.assignedStaff ?? null,
             assignedStaffName:
-              typeof profile.assignedStaff === "object"
-                ? profile.assignedStaff?.name ?? "Unassigned"
+              typeof client.assignedStaff === "object" && client.assignedStaff
+                ? client.assignedStaff.name ?? "Unassigned"
                 : "Unassigned",
           })),
         );
@@ -97,32 +127,7 @@ function ClientPageContent() {
     loadData();
   }, []);
 
-  const currentStaff = useMemo(
-    () =>
-      staffs.find(
-        (staff) =>
-          String(staff._id) === String(user?.id ?? "") ||
-          staff.email === user?.email ||
-          staff.name === user?.name,
-      ) ?? null,
-    [staffs, user],
-  );
-
-  const visibleClients = useMemo(() => {
-    if (isAdmin) {
-      return clients;
-    }
-
-    if (!currentStaff) {
-      return [];
-    }
-
-    return clients.filter((client) => {
-      const assignedId = client.assignedStaffId ?? client.assignedStaff;
-      if (!assignedId) return false;
-      return String(assignedId) === String(currentStaff._id ?? currentStaff.id ?? "");
-    });
-  }, [clients, currentStaff, isAdmin]);
+  const visibleClients = useMemo(() => clients, [clients]);
 
   const handleSidebarSelect = (item: SidebarItem) => {
     if (item === "Dashboard") {
@@ -149,8 +154,8 @@ function ClientPageContent() {
     if (!selectedStaff) return;
 
     try {
-      await api.put(`/profiles/${selectedClient._id}`, {
-        assignedStaff: selectedStaff._id ?? selectedStaff.id,
+      await api.put(`/clients/assign/${selectedClient._id}`, {
+        staffId: selectedStaff._id ?? selectedStaff.id,
       });
 
       setClients((previous) =>
@@ -203,7 +208,7 @@ function ClientPageContent() {
       />
 
       <main className="flex-1 p-8">
-        <Navbar title={isAdmin ? "Clients" : `${currentStaff?.name ?? "My"} Clients`} />
+        <Navbar title="Clients" />
 
         <div className="mb-6">
           <Breadcrumb
@@ -214,21 +219,20 @@ function ClientPageContent() {
           />
         </div>
 
-        {isAdmin && (
-          <div className="mb-6 flex justify-end">
-            <button
-              type="button"
-              onClick={handleAddClient}
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              <span aria-hidden="true">+</span>
-              Add Client
-            </button>
-          </div>
-        )}
+        <div className="mb-6 flex justify-end">
+          <button
+            type="button"
+            onClick={handleAddClient}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          >
+            <span aria-hidden="true">+</span>
+            Add Client
+          </button>
+        </div>
 
-        <ClientTable
-          title={isAdmin ? "All Clients" : `${currentStaff?.name ?? "My"} Clients`}
+        <ReusableTable
+          title="All Clients"
+          variant="compact"
           clients={visibleClients.map((client) => ({
             clientId: Number(client.clientId ?? 0),
             fullName: client.fullName,
@@ -240,7 +244,7 @@ function ClientPageContent() {
             name: staff.name,
             _id: staff._id,
           }))}
-          canManageAssignments={isAdmin}
+          canManageAssignments
           onAssignClient={handleAssignClient}
         />
       </main>

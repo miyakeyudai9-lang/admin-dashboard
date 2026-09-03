@@ -3,6 +3,8 @@ import { LoginPayload } from "./type";
 import { api } from "@/lib/axios";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
+import type { UserRole } from "@/store/type";
+
 export const useLoginHook = () => {
   const router = useRouter();
 
@@ -24,11 +26,12 @@ export const useLoginHook = () => {
 
     onSuccess: (data) => {
       const token = data?.token ?? data?.access_token ?? null;
+      const backendUser = data?.user ?? data?.admin ?? data?.profile ?? null;
       const user = {
-        id: 1,
-        name: "Super Admin",
-        email: "admin@example.com",
-        role: "admin" as const,
+        id: Number(backendUser?._id ?? backendUser?.id ?? 1),
+        name: backendUser?.name ?? backendUser?.fullName ?? "Super Admin",
+        email: backendUser?.email ?? "admin@example.com",
+        role: (backendUser?.role ?? data?.role ?? "superadmin") as UserRole,
       };
 
       if (token) {
