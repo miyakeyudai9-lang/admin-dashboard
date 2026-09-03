@@ -1,61 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/axios";
-
-type ApiStaff = {
-  _id?: string;
-  staffId?: number | string;
-  name: string;
-  phone?: string;
-  location?: string;
-  email?: string;
-  totalClients?: number;
-};
-
-type StaffRowItem = {
-  id: number | string;
-  recordId?: string;
-  name: string;
-  phone: string;
-  location: string;
-  email: string;
-  clientsCount: number;
-};
+import { useStaffList } from "./hook";
+import type { StaffRowItem } from "./staff.type";
 
 export default function StaffTable() {
   const router = useRouter();
-  const [staffs, setStaffs] = useState<StaffRowItem[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadStaffs = async () => {
-      try {
-        const response = await api.get("/staff");
-        const data = Array.isArray(response.data) ? response.data : [];
-
-        const mapped = data.map((staff: ApiStaff) => ({
-          id: staff.staffId ?? staff._id ?? "N/A",
-          recordId: staff._id,
-          name: staff.name ?? "Unknown Staff",
-          phone: staff.phone ?? "N/A",
-          location: staff.location ?? "N/A",
-          email: staff.email ?? "N/A",
-          clientsCount: Number(staff.totalClients ?? 0),
-        }));
-
-        setStaffs(mapped);
-      } catch (error) {
-        console.error("Failed to load staff", error);
-        setStaffs([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadStaffs();
-  }, []);
+  const { data: staffs = [], isLoading: loading } = useStaffList();
 
   const goToClients = (staff: StaffRowItem) =>
     router.push(`/staff/${staff.recordId ?? staff.id}/clients`);
@@ -85,6 +36,9 @@ export default function StaffTable() {
                 <th className="text-left px-5 py-4 font-semibold">Phone</th>
                 <th className="text-left px-5 py-4 font-semibold">Location</th>
                 <th className="text-left px-5 py-4 font-semibold">Email</th>
+                <th className="text-left px-5 py-4 font-semibold">Role</th>
+                <th className="text-left px-5 py-4 font-semibold">Status</th>
+                <th className="text-left px-5 py-4 font-semibold">Created</th>
                 <th className="text-left px-5 py-4 font-semibold">Action</th>
               </tr>
             </thead>
@@ -125,6 +79,21 @@ function StaffRow({
       <td className="px-5 py-4 text-gray-600">{staff.phone}</td>
       <td className="px-5 py-4 text-gray-600">{staff.location}</td>
       <td className="px-5 py-4 text-gray-600">{staff.email}</td>
+      <td className="px-5 py-4 capitalize text-gray-600">{staff.role}</td>
+      <td className="px-5 py-4">
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-medium ${
+            staff.isActive
+              ? "bg-green-100 text-green-700"
+              : "bg-gray-100 text-gray-600"
+          }`}
+        >
+          {staff.isActive ? "Active" : "Inactive"}
+        </span>
+      </td>
+      <td className="px-5 py-4 text-gray-600">
+        {staff.createdAt ? new Date(staff.createdAt).toLocaleDateString() : "N/A"}
+      </td>
 
       <td className="px-5 py-4">
         <button
