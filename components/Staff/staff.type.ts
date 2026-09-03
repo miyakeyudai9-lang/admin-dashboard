@@ -1,3 +1,38 @@
+export type ApiStaff = {
+  _id?: string;
+  staffId?: number | string;
+  name: string;
+  phone?: string;
+  location?: string;
+  email?: string;
+  totalClients?: number;
+  role?: "staff";
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type StaffRowItem = {
+  id: number | string;
+  recordId?: string;
+  name: string;
+  phone: string;
+  location: string;
+  email: string;
+  clientsCount: number;
+  role: string;
+  isActive: boolean;
+  createdAt?: string;
+};
+
+export type CreateStaffPayload = {
+  name: string;
+  phone: string;
+  location: string;
+  email: string;
+  password: string;
+};
+
 export type Client = {
   clientId: number;
   assignedStaffId?: number;

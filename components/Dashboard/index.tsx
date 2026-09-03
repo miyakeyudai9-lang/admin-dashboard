@@ -1,53 +1,75 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "../Navbar";
 import Sidebar from "../Sidebar";
-import StaffTable from "../Staff";
-import { dashboardStats, recentActivities } from "./dashboard.type";
+import { recentActivities } from "./dashboard.type";
 import type { SidebarItem } from "../Sidebar/sidebar.type";
+import { useDashboardStats } from "./hook";
 
 export default function DashboardComponentnent() {
-  const [selectedView, setSelectedView] = useState<SidebarItem>("Dashboard");
+  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const { data: dashboardStats = [], isLoading, isError } = useDashboardStats();
+
+  const handleSidebarSelect = (item: SidebarItem) => {
+    if (item === "Staff") {
+      router.push("/staff");
+      return;
+    }
+
+    if (item === "Clients") {
+      router.push("/client");
+      return;
+    }
+
+    router.push("/admin/dashboard");
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar
-        selected={selectedView}
-        onSelect={setSelectedView}
+        selected="Dashboard"
+        onSelect={handleSidebarSelect}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}
       />
 
       <main className="flex-1 p-8">
-        <Navbar title={selectedView} />
+        <Navbar title="Dashboard" />
 
-        {selectedView === "Dashboard" ? (
-          <>
-            <div className="grid grid-cols-3 gap-6 mb-8">
-              {dashboardStats.map((stat) => (
-                <div key={stat.title} className="bg-white p-6 rounded shadow">
-                  <h3 className="text-gray-500">{stat.title}</h3>
-                  <p className="text-3xl font-bold">{stat.value}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-white rounded shadow p-6 mt-8">
-              <h3 className="text-xl font-bold mb-4">Recent Activities</h3>
-
-              <ul className="space-y-3">
-                {recentActivities.map((activity) => (
-                  <li key={activity.id}>{activity.text}</li>
-                ))}
-              </ul>
-            </div>
-          </>
-        ) : (
-          <StaffTable />
+        {isError && (
+          <div className="mb-6 rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
+            Failed to load dashboard counts.
+          </div>
         )}
+
+        <div className="mb-8 grid gap-6 md:grid-cols-3">
+          {(isLoading ? dashboardStatSkeleton : dashboardStats).map((stat) => (
+            <div key={stat.title} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <h3 className="text-sm font-medium text-gray-500">{stat.title}</h3>
+              <p className="mt-3 text-3xl font-bold text-gray-900">{stat.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+          <h3 className="mb-4 text-xl font-bold text-gray-900">Recent Activities</h3>
+
+          <ul className="space-y-3 text-sm text-gray-700">
+            {recentActivities.map((activity) => (
+              <li key={activity.id}>{activity.text}</li>
+            ))}
+          </ul>
+        </div>
       </main>
     </div>
   );
 }
+
+const dashboardStatSkeleton = [
+  { title: "Total Staff", value: "..." },
+  { title: "Total Clients", value: "..." },
+  { title: "Completed Clients", value: "..." },
+];
