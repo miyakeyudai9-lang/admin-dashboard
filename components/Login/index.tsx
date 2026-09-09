@@ -19,11 +19,12 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginFormValues, loginSchema } from "./type";
 import { useLoginHook } from "./hook";
 
-import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
-export const LoginComponent = () => {
+import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import VisibilityOffOutlinedIcon from "@mui/icons-material/VisibilityOffOutlined";
+const LoginComponent = () => {
   const [showPassword, setShowPassword] = useState(false);
 
-  const { loginAsync, loading, error: loginError } = useLoginHook();
+  const { loginAsync, loading } = useLoginHook();
 
   const {
     register,
@@ -73,7 +74,7 @@ export const LoginComponent = () => {
           }}
         >
           <Image
-            src="/assets/images/logo.jpg"
+            src="/company_logo.png"
             alt="Logo"
             width={120}
             height={50}
@@ -125,24 +126,6 @@ export const LoginComponent = () => {
               gap: 2,
             }}
           >
-            {/* Backend error */}
-            {loginError && (
-              <Box
-                role="alert"
-                sx={{
-                  backgroundColor: "#BF1D391A",
-                  borderLeft: "2px solid #BF1D39",
-                  p: 1,
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: "#BF1D39",
-                  lineHeight: 1.2,
-                }}
-              >
-                {loginError}
-              </Box>
-            )}
-
             {/* Email */}
             <Box>
               <Typography
@@ -240,9 +223,9 @@ export const LoginComponent = () => {
                       size="small"
                     >
                       {showPassword ? (
-                        <AiOutlineEye />
+                        <VisibilityOutlinedIcon fontSize="small" />
                       ) : (
-                        <AiOutlineEyeInvisible />
+                        <VisibilityOffOutlinedIcon fontSize="small" />
                       )}
                     </IconButton>
                   </InputAdornment>
@@ -298,3 +281,4 @@ export const LoginComponent = () => {
     </Box>
   );
 };
+export default LoginComponent;

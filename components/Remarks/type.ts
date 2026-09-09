@@ -3,6 +3,7 @@ export type RemarkEntry = {
   date: string;
   staffName: string;
   text: string;
+  medium?: "Phone Call" | "Meeting" | "WhatsApp" | "Company Visit" | "Other";
 };
 
 export type RemarksProps = {
@@ -10,4 +11,6 @@ export type RemarksProps = {
   value?: string;
   remarks?: RemarkEntry[];
   staffName?: string;
+  staffLocation?: string;
+  clientId?: string | number;
 };

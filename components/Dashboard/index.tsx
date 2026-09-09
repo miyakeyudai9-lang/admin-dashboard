@@ -1,42 +1,24 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Navbar from "../Navbar";
 import Sidebar from "../Sidebar";
 import { recentActivities } from "./dashboard.type";
-import type { SidebarItem } from "../Sidebar/sidebar.type";
 import { useDashboardStats } from "./hook";
 
 export default function DashboardComponentnent() {
-  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { data: dashboardStats = [], isLoading, isError } = useDashboardStats();
 
-  const handleSidebarSelect = (item: SidebarItem) => {
-    if (item === "Staff") {
-      router.push("/staff");
-      return;
-    }
-
-    if (item === "Clients") {
-      router.push("/client");
-      return;
-    }
-
-    router.push("/admin/dashboard");
-  };
-
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100">
       <Sidebar
         selected="Dashboard"
-        onSelect={handleSidebarSelect}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((prev) => !prev)}
       />
 
-      <main className="flex-1 p-8">
+      <main className="h-screen flex-1 overflow-y-auto px-8 pb-8">
         <Navbar title="Dashboard" />
 
         {isError && (
